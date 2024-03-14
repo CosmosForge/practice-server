@@ -7,6 +7,8 @@ import * as argon2 from "argon2"
 import { User } from './entities/user.entity';
 import * as dotenv from "dotenv"
 import {v4 as uuid} from "uuid"
+import { Op } from 'sequelize';
+import { AuthService } from 'src/auth/auth.service';
 dotenv.config()
 @Injectable()
 export class UserService {
@@ -14,6 +16,7 @@ export class UserService {
     private readonly mailerService: MailerService,
     @InjectModel(User)
         private readonly user: typeof User,
+        private readonly auth: AuthService
   ) {}
 
   async create(user: CreateUserDto, domain:string) {
@@ -53,4 +56,27 @@ export class UserService {
   remove(id: number) {
     return `This action removes a #${id} user`;
   }
+  async logIn(userData:{user:string, password:string}){
+    const user = await this.user.findOne({where:{[Op.or]: [{ username: userData.user }, { email: userData.user }]}});
+    if(user != null && user.confirmStatus == true){
+        const passwordMatches  = await argon2.verify(user.password, userData.password)
+        if(passwordMatches){
+            const refreshToken = await this.auth.refreshToken(user)
+            const accessToken = await this.auth.accesToken(user)
+            return {status:true, refreshToken, accessToken}
+        }else{
+            return {status:false, message:"Incorrect password"}
+        }
+    }else{
+        return {status:false, message:"non-existent username or email"}
+    }
+}
+
+async confirm(uuid:string){
+    const user = await this.user.findOne({where:{refreshToken:uuid}})
+    const refreshToken = await this.auth.refreshToken(user)
+    const accessToken = await this.auth.accesToken(user)
+    this.user.update({confirmStatus:true, refreshToken:refreshToken}, {where:{refreshToken:uuid}})
+    return {status:true, refreshToken, accessToken}
+}
 }

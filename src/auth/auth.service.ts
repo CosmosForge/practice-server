@@ -1,18 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserService } from '../user.service';
+import { UserService } from '../user/user.service';
 import * as dotenv from "dotenv"
+import * as argon2 from "argon2"
+import { Op } from 'sequelize';
 dotenv.config()
 @Injectable()
 export class AuthService {
-    constructor(private readonly userService: UserService, private jwt:JwtService) {}
-    async logIn(){
-        
-        
-    }
-    async confirm(uuid:string){
-        const user = await this.userService.findOne({refreshToken:uuid})
-        const refreshToken = this.jwt.sign(
+    constructor( private jwt:JwtService) {}
+
+    async refreshToken(user){
+        return await this.jwt.sign(
             {
                 username:user.id,
             },
@@ -21,7 +19,10 @@ export class AuthService {
                 expiresIn:process.env.TOKEN_EXPIRATION
             }
         )
-        const accessToken = this.jwt.sign(
+    }
+
+    async accesToken(user){
+        return await this.jwt.sign(
             {
                 username:user.username,
                 name:user.firstName,
@@ -33,7 +34,14 @@ export class AuthService {
                 expiresIn:"1h"
             }
         )
-        this.userService.update({confirmStatus:true, refreshToken:refreshToken}, {refreshToken:uuid})
-        return {status:true, refreshToken, accessToken}
+    }
+
+    async verifyToken(token:string): Promise<[boolean, {}]>{
+        try {
+            const decodedToken = await this.jwt.verify(token, { secret: process.env.SECRET_KEY });
+            return [true, decodedToken];
+        } catch (error) {
+            return [false, {}]
+        }
     }
 }
