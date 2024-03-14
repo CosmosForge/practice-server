@@ -1,24 +1,29 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Res, BadRequestException } from '@nestjs/common';
 import { UserService } from './user.service';
 import { Request, Response } from 'express';
-import { AuthService } from './auth/auth.service';
+import { AuthService } from '../auth/auth.service';
 import * as dotenv from "dotenv"
 import { CreateUserDto } from './dto/create-user.dto';
 import { Op } from 'sequelize';
-
 dotenv.config()
 // const refreshToken = await paseto.V3.encrypt(, Buffer.concat([Buffer.from(process.env.SECRET_KEY)], 32))
+interface login{
+  user:string
+  password:string
+}
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService, private auth:AuthService) {}
-  @Get("auth/login")
-  async login(@Body() userData: CreateUserDto){
-    const user = await this.userService.findOne({
-      where: {
-        [Op.or]: [{ username: userData.username }, { email: userData.email }],
-      },
-    });
-    
+  constructor(private readonly userService: UserService) {}
+  @Post("auth/login")
+  async login(@Body() userData:login , @Res() res: Response){
+    const obj = await this.userService.logIn(userData)
+    if(obj.status){
+      res.cookie("access-token", obj.accessToken)
+      res.cookie("refresh-token", obj.refreshToken)
+      res.status(200).send();
+    }else{
+      throw new BadRequestException(obj.message);
+    }
   }
   @Get('auth/logout')
   logout(@Res() res: Response) {
@@ -28,7 +33,7 @@ export class UserController {
   }
   @Get("confirm-email/:uuid")
   async confirm(@Param("uuid") uuid:string, @Res() res: Response){
-    const obj = await this.auth.confirm(uuid)
+    const obj = await this.userService.confirm(uuid)
     if(obj.status){
       res.cookie("access-token", obj.accessToken)
       res.cookie("refresh-token", obj.refreshToken)

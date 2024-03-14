@@ -5,12 +5,14 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { join } from 'path';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
-import { User } from './user/entities/user.entity';
 import { Dialect } from 'sequelize';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { EjsAdapter } from '@nestjs-modules/mailer/dist/adapters/ejs.adapter';
+import { RealEstateModule } from './real-estate/real-estate.module';
+import { User } from './user/entities/user.entity';
 import * as dotenv from "dotenv"
 import * as path from "path"
+import { RealEstate } from './real-estate/entities/real-estate.entity';
 dotenv.config()
 @Module({
   imports: [
@@ -27,7 +29,7 @@ dotenv.config()
         database:  process.env.DB_NAME_PRODUCTION as Dialect,
         synchronize: true, 
         autoLoadModels: true,
-        models: [User],
+        models: [User, RealEstate],
         sync: { force: false, alter: true }
       })
     }),
@@ -49,7 +51,8 @@ dotenv.config()
         
       },
     }),
-    UserModule
+    UserModule,
+    RealEstateModule
   ],
   controllers: [AppController],
   providers: [AppService],
